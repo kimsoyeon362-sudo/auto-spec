@@ -1,0 +1,9 @@
+.venv/
+.env
+__pycache__/
+*.py[cod] 
+# 가상환경과 API 키 파일이 실수로 공유되는 걸 막아줌
+# Streamlit 비밀 설정(API 키)과 개인 저장 데이터
+.streamlit/secrets.toml
+saved_contests.json
+*_debug.html

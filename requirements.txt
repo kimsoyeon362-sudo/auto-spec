@@ -1,0 +1,7 @@
+# Python 3.10 이상 필요 (str | None 문법 사용, 3.9 이하에서는 내장 parser 모듈과 이름이 겹침)
+streamlit>=1.50         # 웹 화면 (app.py)
+requests>=2.31          # 공고 URL에 접속해서 페이지 가져오기
+beautifulsoup4>=4.12    # 가져온 HTML에서 제목과 본문 찾기
+openai>=1.66            # 공고 내용 AI 분석 (responses.parse가 있는 버전)
+pydantic>=2.0           # extractor.py에서 결과 형식 정의에 직접 사용
+python-dotenv>=1.0      # 로컬에서 .env 파일에 저장한 API 키 읽기
