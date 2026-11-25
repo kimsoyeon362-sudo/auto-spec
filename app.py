@@ -116,7 +116,7 @@ st.markdown(
     f"""
     <style>
     header[data-testid="stHeader"] {{ height: 0; }}
-    .block-container {{ padding-top: 1.2rem; padding-bottom: 4rem; max-width: 1280px; }}
+    .block-container {{ padding-top: 3.2rem; padding-bottom: 4rem; max-width: 1280px; }}
     .muted {{ color: {MUTED}; }}
     .small {{ font-size: 0.85rem; }}
     .toolbar-label {{ padding-top: 0.45rem; font-weight: 500; }}
@@ -418,8 +418,8 @@ def render_header(record: dict, info: dict) -> None:
     left, right = st.columns([5, 1.6])
     org = info.get("hosting_organization")
     left.markdown(
-        f'<p class="detail-title">{esc(contest_name(record))}</p>'
-        f'<p class="muted" style="margin-top:0.3rem">{esc(org) if has_value(org) else "주최 정보 없음"}</p>',
+        f'<div class="detail-title">{esc(contest_name(record))}</div>'
+        f'<div class="muted" style="margin-top:0.3rem">{esc(org) if has_value(org) else "주최 정보 없음"}</div>',
         unsafe_allow_html=True,
     )
     days = days_left(info.get("deadline"))
@@ -444,7 +444,7 @@ def render_actions(record: dict, info: dict) -> None:
         st.code(copy_text(record), language=None)
 
     if record.get("sample"):
-        cols[5].markdown('<p class="muted" style="padding-top:0.45rem">샘플 데이터</p>', unsafe_allow_html=True)
+        cols[4].markdown('<div class="muted" style="padding-top:0.45rem;text-align:right;white-space:nowrap">샘플 데이터</div>', unsafe_allow_html=True)
         return
     if cols[4].button("수정", width="stretch"):
         ss.editing = True
