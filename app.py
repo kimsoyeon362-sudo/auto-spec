@@ -15,11 +15,11 @@
 import html
 import json
 import os
+import re
 import uuid
 from datetime import date, datetime
 from zoneinfo import ZoneInfo
 
-import pandas as pd
 import streamlit as st
 
 APP_NAME = "공모전 공고 정리기"
@@ -112,23 +112,61 @@ SAMPLE = {
 
 # ── 화면 스타일 ───────────────────────────────────────────
 # UI 수정은 주로 여기(CSS)와 아래 render_* 함수들에서 하면 됩니다.
+BORDER = "#E3E3E3"
 st.markdown(
     f"""
     <style>
     header[data-testid="stHeader"] {{ height: 0; }}
-    .block-container {{ padding-top: 3.2rem; padding-bottom: 4rem; max-width: 1280px; }}
+    .block-container {{ padding-top: 2.6rem; padding-bottom: 4rem; max-width: 1280px; }}
     .muted {{ color: {MUTED}; }}
     .small {{ font-size: 0.85rem; }}
+
+    /* 헤더 */
+    .brand {{ display: flex; align-items: baseline; gap: 0.8rem; margin-bottom: 0.9rem; }}
+    .brand .logo {{ font-size: 1.55rem; font-weight: 800; letter-spacing: -0.02em; color: {TEXT}; }}
+    .brand .logo span {{ color: {LINK}; }}
+    .brand .tagline {{ color: {MUTED}; font-size: 0.95rem; }}
     .toolbar-label {{ padding-top: 0.45rem; font-weight: 500; }}
-    .section-title {{ font-size: 1.05rem; font-weight: 700; margin: 1.1rem 0 0.4rem; color: {TEXT}; }}
+
+    .section-title {{ font-size: 1.05rem; font-weight: 700; margin: 0 0 0.5rem; color: {TEXT}; }}
+
+    /* 목록 카드: 카드 전체를 투명 버튼이 덮어서 클릭되게 함 */
+    [class*="st-key-card"] {{ position: relative; background: #FFFFFF; border: 1px solid {BORDER};
+        border-radius: 8px; padding: 0.7rem 0.85rem; gap: 0; }}
+    [class*="st-key-card"]:hover {{ border-color: #B8C7D9; }}
+    [class*="st-key-cardsel_"] {{ border: 1.5px solid {LINK}; background: #F5F9FD; }}
+    [class*="st-key-card"] .stButton {{ position: absolute; inset: 0; z-index: 2; }}
+    [class*="st-key-card"] .stButton button {{ width: 100%; height: 100%; opacity: 0; cursor: pointer; }}
+    .card-row {{ display: flex; justify-content: space-between; align-items: flex-start; gap: 0.6rem; }}
+    .card-name {{ font-weight: 600; color: {TEXT}; line-height: 1.35; }}
+    .card-sub {{ color: {MUTED}; font-size: 0.8rem; margin-top: 0.2rem; }}
+    .badge {{ display: inline-block; padding: 0.1rem 0.5rem; border-radius: 4px; font-size: 0.8rem;
+        font-weight: 700; white-space: nowrap; }}
+
+    /* 상세 */
     .detail-title {{ font-size: 1.6rem; font-weight: 700; line-height: 1.3; margin: 0; color: {TEXT}; }}
-    .deadline-box {{ text-align: right; }}
-    .deadline-box .date {{ font-weight: 700; }}
-    .kv {{ width: 100%; border-collapse: collapse; }}
-    .kv td {{ vertical-align: top; padding: 0.3rem 0; border: none; }}
+    .summary {{ display: grid; grid-template-columns: 1.1fr 1fr 1fr 1fr; gap: 0.6rem; margin: 1rem 0 0.9rem; }}
+    .summary .cell {{ background: #FFFFFF; border: 1px solid {BORDER}; border-radius: 8px; padding: 0.7rem 0.85rem; }}
+    .summary .label {{ color: {MUTED}; font-size: 0.78rem; margin-bottom: 0.25rem; }}
+    .summary .value {{ font-weight: 700; color: {TEXT}; line-height: 1.35; }}
+    .summary .dday {{ font-size: 1.7rem; font-weight: 800; line-height: 1.1; }}
+    .box {{ background: #FFFFFF; border: 1px solid {BORDER}; border-radius: 8px;
+        padding: 0.9rem 1.1rem 0.6rem; margin-bottom: 0.8rem; }}
+    .kv {{ width: 100%; border-collapse: collapse; margin: 0; }}
+    .kv tr, .kv td {{ border: none !important; background: transparent !important; }}
+    .kv td {{ vertical-align: top; padding: 0.28rem 0; }}
     .kv td.k {{ width: 120px; color: {MUTED}; white-space: nowrap; padding-right: 1rem; }}
     .kv a {{ color: {LINK}; text-decoration: underline; }}
-    .empty {{ text-align: center; padding: 6rem 0; }}
+
+    /* 첫 화면 */
+    .welcome {{ padding: 2.2rem 0 1rem; }}
+    .welcome h3 {{ font-size: 1.3rem; font-weight: 700; margin: 0 0 0.3rem; color: {TEXT}; }}
+    .steps {{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.7rem; margin: 1.3rem 0 1.2rem; }}
+    .step {{ background: #FFFFFF; border: 1px solid {BORDER}; border-radius: 8px; padding: 0.9rem 1rem; }}
+    .step .num {{ color: {LINK}; font-weight: 800; font-size: 0.85rem; }}
+    .step .title {{ font-weight: 700; margin: 0.2rem 0; color: {TEXT}; }}
+    .step .desc {{ color: {MUTED}; font-size: 0.85rem; line-height: 1.45; }}
+
     .statusbar {{
         position: fixed; left: 0; right: 0; bottom: 0; z-index: 99;
         display: flex; justify-content: space-between;
@@ -140,7 +178,6 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
-
 
 # ── 도움 함수 (ui.py와 동일한 규칙) ───────────────────────
 def has_value(value) -> bool:
@@ -222,6 +259,72 @@ def link_lines_html(text: str) -> str:
         shown = name or (urls[0] if len(urls[0]) <= 70 else urls[0][:67] + "...")
         out.append(f'<a href="{html.escape(urls[0], quote=True)}" target="_blank">{esc(shown)}</a>')
     return "<br>".join(out)
+
+
+
+# ── 요약·배지 (UI용) ──────────────────────────────────────
+BADGE_STYLE = {  # 상태: (글자색, 배경색)
+    "urgent": (URGENT, "#FDE7E9"),
+    "soon": (SOON, "#FFF4CE"),
+    "closed": (CLOSED, "#EEEEEE"),
+    "normal": (LINK, "#E8F1FB"),
+    "none": (MUTED, "#EEEEEE"),
+}
+
+
+def deadline_state(days: int | None) -> str:
+    if days is None:
+        return "none"
+    if days < 0:
+        return "closed"
+    if days <= 3:
+        return "urgent"
+    if days <= 7:
+        return "soon"
+    return "normal"
+
+
+def dday_text(days: int | None) -> str:
+    if days is None:
+        return "날짜 미정"
+    if days < 0:
+        return "마감"
+    if days == 0:
+        return "D-day"
+    return f"D-{days}"
+
+
+def badge_html(days: int | None) -> str:
+    fg, bg = BADGE_STYLE[deadline_state(days)]
+    return f'<span class="badge" style="color:{fg};background:{bg}">{dday_text(days)}</span>'
+
+
+def shorten(text: str, limit: int = 22) -> str:
+    text = " ".join(str(text).split())
+    return text if len(text) <= limit else text[: limit - 1] + "…"
+
+
+def prize_summary(text) -> str:
+    """'총상금' 줄이 있으면 그 금액을, 없으면 첫 줄을 짧게 보여 줍니다."""
+    if not has_value(text):
+        return "-"
+    lines = [l.strip() for l in str(text).splitlines() if l.strip()]
+    for line in lines:
+        if re.search(r"총\s*상금", line):
+            value = re.split(r"[:：]", line, maxsplit=1)[-1].strip()
+            return shorten(value or line)
+    return shorten(lines[0])
+
+
+def team_summary(info: dict) -> str:
+    ptype = info.get("participation_type")
+    team = info.get("max_team_members")
+    if not has_value(ptype):
+        return "-"
+    if "팀" in ptype and has_value(team):
+        return shorten(f"{ptype} · 최대 {team}")
+    return ptype
+
 
 
 # ── 상태 ──────────────────────────────────────────────────
@@ -339,10 +442,17 @@ def render_toolbar() -> None:
 
 
 # ── 왼쪽: 저장한 공고 목록 ───────────────────────────────
-def sorted_records(query: str) -> list[dict]:
+FILTERS = ["전체", "마감 임박", "마감"]
+
+
+def sorted_records(query: str, mode: str) -> list[dict]:
     query = query.strip().lower()
     items = [r for r in ss.saved
              if query in (contest_name(r) + " " + str(r["info"].get("hosting_organization", ""))).lower()]
+    if mode == "마감 임박":
+        items = [r for r in items if (d := days_left(r["info"].get("deadline"))) is not None and 0 <= d <= 7]
+    elif mode == "마감":
+        items = [r for r in items if (d := days_left(r["info"].get("deadline"))) is not None and d < 0]
 
     def by_deadline(record):
         days = days_left(record["info"].get("deadline"))
@@ -353,42 +463,48 @@ def sorted_records(query: str) -> list[dict]:
     return sorted(items, key=by_deadline)
 
 
-def render_list() -> None:
-    st.markdown('<div class="section-title" style="margin-top:0">저장한 공고</div>', unsafe_allow_html=True)
-    query = st.text_input("검색", placeholder="이름 또는 주최 기관 검색", label_visibility="collapsed")
-    records = sorted_records(query)
-
-    if not records:
-        st.markdown('<p class="muted small">저장한 공고가 없습니다.</p>', unsafe_allow_html=True)
-    else:
-        rows, colors = [], []
-        for record in records:
-            days = days_left(record["info"].get("deadline"))
-            rows.append({
-                "공모전": contest_name(record),
-                "마감일": record["info"]["deadline"].replace("-", ".") if days is not None else "-",
-                "남음": remaining_text(days),
-            })
-            colors.append(remaining_color(days) if days is not None and days <= 7 else TEXT)
-        table = pd.DataFrame(rows).style.apply(lambda row: [f"color: {colors[row.name]}"] * len(row), axis=1)
-        event = st.dataframe(
-            table, hide_index=True, width="stretch", height=min(42 + 35 * len(rows), 520),
-            on_select="rerun", selection_mode="single-row", key=f"list_{ss.list_ver}",
-            column_config={"마감일": st.column_config.TextColumn(width="small"),
-                           "남음": st.column_config.TextColumn(width="small")},
+def render_card(record: dict) -> None:
+    info = record["info"]
+    days = days_left(info.get("deadline"))
+    selected = ss.current is not None and ss.current.get("id") == record["id"]
+    org = info.get("hosting_organization")
+    sub = shorten(org, 28) if has_value(org) else "주최 정보 없음"
+    if days is not None:
+        sub += " · " + info["deadline"].replace("-", ".")
+    key = ("cardsel_" if selected else "card_") + record["id"]
+    with st.container(key=key):
+        st.markdown(
+            f'<div class="card-row"><div><div class="card-name">{esc(contest_name(record))}</div>'
+            f'<div class="card-sub">{esc(sub)}</div></div>{badge_html(days)}</div>',
+            unsafe_allow_html=True,
         )
-        picked = event.selection.rows
-        if picked and picked[0] != ss.last_pick:
-            ss.last_pick = picked[0]
+        if st.button("열기", key=f"open_{record['id']}"):
             if ss.editing:
                 set_status("수정 중에는 다른 공고를 열 수 없습니다. 저장하거나 취소하세요.", error=True)
             else:
-                open_record(records[picked[0]], clear_selection=False)
-                st.rerun()
+                open_record(record)
+            st.rerun()
 
-    if st.button("샘플 공고 열기", width="stretch"):
-        open_record(json.loads(json.dumps(SAMPLE)))
-        st.rerun()
+
+def render_list() -> None:
+    st.markdown('<div class="section-title">저장한 공고</div>', unsafe_allow_html=True)
+    query = st.text_input("검색", placeholder="이름 또는 주최 기관 검색", label_visibility="collapsed")
+
+    counts = {
+        "전체": len(ss.saved),
+        "마감 임박": sum(1 for r in ss.saved if (d := days_left(r["info"].get("deadline"))) is not None and 0 <= d <= 7),
+        "마감": sum(1 for r in ss.saved if (d := days_left(r["info"].get("deadline"))) is not None and d < 0),
+    }
+    mode = st.segmented_control("보기", FILTERS, default="전체", label_visibility="collapsed",
+                                format_func=lambda m: f"{m} {counts[m]}", key="filter") or "전체"
+
+    records = sorted_records(query, mode)
+    if not records:
+        st.markdown('<p class="muted small">' + ("저장한 공고가 없습니다." if not ss.saved
+                    else "조건에 맞는 공고가 없습니다.") + "</p>", unsafe_allow_html=True)
+    with st.container(height=480 if len(records) > 6 else None, border=False):
+        for record in records:
+            render_card(record)
 
     with st.expander("목록 파일 (내보내기 / 불러오기)"):
         st.caption("웹 버전은 창을 닫으면 목록이 사라집니다. 파일로 내보내 두세요.")
@@ -406,7 +522,6 @@ def render_list() -> None:
                 known = {r.get("id") for r in ss.saved}
                 new = [r for r in data if isinstance(r, dict) and "info" in r and r.get("id") not in known]
                 ss.saved += new
-                ss.list_ver += 1
                 set_status(f"공고 {len(new)}개를 불러왔습니다.")
                 st.rerun()
             except (ValueError, UnicodeDecodeError):
@@ -415,21 +530,35 @@ def render_list() -> None:
 
 # ── 오른쪽: 상세 ─────────────────────────────────────────
 def render_header(record: dict, info: dict) -> None:
-    left, right = st.columns([5, 1.6])
     org = info.get("hosting_organization")
-    left.markdown(
+    st.markdown(
         f'<div class="detail-title">{esc(contest_name(record))}</div>'
         f'<div class="muted" style="margin-top:0.3rem">{esc(org) if has_value(org) else "주최 정보 없음"}</div>',
         unsafe_allow_html=True,
     )
+
+
+def render_summary(info: dict) -> None:
+    """제목 아래 요약 카드 4개: 마감 / 총상금 / 참가 방식 / 참가 대상."""
     days = days_left(info.get("deadline"))
+    fg, _ = BADGE_STYLE[deadline_state(days)]
     if days is None:
-        box = '<span class="muted">마감일 확인 필요</span>'
+        due = "마감일 확인 필요"
     else:
-        note = "마감되었습니다" if days < 0 else "오늘 마감" if days == 0 else f"{days}일 남음"
-        box = (f'<div class="date">마감 {esc(info["deadline"].replace("-", "."))}</div>'
-               f'<div class="small" style="color:{remaining_color(days)}">{note}</div>')
-    right.markdown(f'<div class="deadline-box">{box}</div>', unsafe_allow_html=True)
+        due = "마감 " + info["deadline"].replace("-", ".")
+        due += " · 마감되었습니다" if days < 0 else " · 오늘 마감" if days == 0 else ""
+    eligibility = info.get("participant_eligibility")
+    st.markdown(
+        '<div class="summary">'
+        f'<div class="cell"><div class="label">남은 기간</div>'
+        f'<div class="dday" style="color:{fg}">{dday_text(days)}</div><div class="label" style="margin:0.2rem 0 0">{esc(due)}</div></div>'
+        f'<div class="cell"><div class="label">상금</div><div class="value">{esc(prize_summary(info.get("prize_details")))}</div></div>'
+        f'<div class="cell"><div class="label">참가 방식</div><div class="value">{esc(team_summary(info))}</div></div>'
+        f'<div class="cell"><div class="label">참가 대상</div><div class="value">'
+        f'{esc(shorten(eligibility) if has_value(eligibility) else "-")}</div></div>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
 
 
 def render_actions(record: dict, info: dict) -> None:
@@ -469,17 +598,15 @@ def render_sections(info: dict) -> None:
             f'<td class="v">{link_lines_html(info[k]) if k in LINK_FIELDS else esc(info[k])}</td></tr>'
             for k in present
         )
-        parts.append(f'<div class="section-title">{section}</div><table class="kv">{rows}</table>')
+        parts.append(f'<div class="box"><div class="section-title">{section}</div><table class="kv">{rows}</table></div>')
 
     if not shown_any:
         parts.append('<p class="muted">공고에서 정리할 수 있는 정보를 찾지 못했습니다.</p>')
 
     missing = [LABELS[k] for k in LABELS if k not in ("competition_name", "deadline") and not has_value(info.get(k))]
     if missing:
-        parts.append(f'<p class="muted small" style="margin-top:1.4rem">공고에 없는 항목: {esc(", ".join(missing))}</p>')
+        parts.append(f'<p class="muted small" style="margin-top:0.6rem">공고에 없는 항목: {esc(", ".join(missing))}</p>')
     st.markdown("".join(parts), unsafe_allow_html=True)
-
-
 def render_edit_form(record: dict, info: dict) -> None:
     with st.form("edit", border=False):
         note, cancel_col, save_col = st.columns([5, 0.9, 0.9], vertical_alignment="center")
@@ -521,25 +648,41 @@ def render_edit_form(record: dict, info: dict) -> None:
         st.rerun()
 
 
+def render_welcome() -> None:
+    """선택된 공고가 없을 때 보여 주는 첫 화면 (사용 방법 3단계 + 샘플 체험)."""
+    st.markdown(
+        '<div class="welcome"><h3>공모전 공고, 링크 하나로 정리하세요</h3>'
+        '<div class="muted">긴 공고문을 끝까지 읽지 않아도 참가 자격, 마감일, 상금, 제출 서류를 바로 확인할 수 있어요.</div>'
+        '<div class="steps">'
+        '<div class="step"><div class="num">STEP 1</div><div class="title">공고 URL 붙여넣기</div>'
+        '<div class="desc">위비티, 올콘 같은 공모전 사이트의 상세 페이지 주소를 위 입력칸에 넣으세요.</div></div>'
+        '<div class="step"><div class="num">STEP 2</div><div class="title">항목별로 자동 정리</div>'
+        '<div class="desc">공고 본문을 읽고 참가 자격, 일정, 시상, 접수 방법을 나눠서 보여 줍니다.</div></div>'
+        '<div class="step"><div class="num">STEP 3</div><div class="title">저장하고 마감 관리</div>'
+        '<div class="desc">저장한 공고는 마감일 순으로 정렬되고, 임박한 공고는 색으로 표시됩니다.</div></div>'
+        '</div></div>',
+        unsafe_allow_html=True,
+    )
+    if st.button("샘플 공고로 체험하기", type="primary"):
+        open_record(json.loads(json.dumps(SAMPLE)))
+        st.rerun()
+
+
 def render_detail() -> None:
     record = ss.current
     if record is None:
-        st.markdown(
-            '<div class="empty"><div class="section-title">선택된 공고가 없습니다</div>'
-            '<p class="muted">위에 공고 URL을 입력하거나 왼쪽 목록에서 공고를 선택하세요.</p></div>',
-            unsafe_allow_html=True,
-        )
+        render_welcome()
         return
     info = record["info"]
     render_header(record, info)
     if ss.editing:
+        st.write("")
         render_edit_form(record, info)
         return
+    render_summary(info)
     render_actions(record, info)
-    st.divider()
+    st.write("")
     render_sections(info)
-
-
 # ── 하단 상태 표시줄 ──────────────────────────────────────
 def render_statusbar() -> None:
     text, error = ss.status
@@ -552,6 +695,11 @@ def render_statusbar() -> None:
 
 
 # ── 화면 조립 ────────────────────────────────────────────
+st.markdown(
+    '<div class="brand"><div class="logo">auto<span>-</span>spec</div>'
+    '<div class="tagline">공모전 공고, 한눈에 정리</div></div>',
+    unsafe_allow_html=True,
+)
 render_toolbar()
 list_col, detail_col = st.columns([3.2, 6.8], gap="large")
 with list_col:
