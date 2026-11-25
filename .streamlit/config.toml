@@ -1,10 +1,10 @@
-# 화면 테마 — B안: 다크 + 민트 포인트
+# 화면 테마 — 노션 스타일(흰 바탕) + 포인트 컬러
 [theme]
-base = "dark"
-primaryColor = "#3DDBB0"
-backgroundColor = "#15171C"
-secondaryBackgroundColor = "#22262E"
-textColor = "#E7E9EE"
+base = "light"
+primaryColor = "#2563EB"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F7F7F5"
+textColor = "#37352F"
 font = "sans serif"
 
 [client]

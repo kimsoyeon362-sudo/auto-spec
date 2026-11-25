@@ -48,16 +48,20 @@ from parser import ParseError, parse_html  # noqa: E402
 
 
 # ── 색·항목 정의 (ui.py와 동일) ──────────────────────────
-MUTED = "#8B93A3"
-LINK = "#3DDBB0"   # 민트 포인트
-URGENT = "#FF7A6B"
-SOON = "#FFB454"
-CLOSED = "#6B7280"
-TEXT = "#E7E9EE"
-BG = "#15171C"        # 페이지 배경
-PANEL = "#1C1F26"     # 목록·섹션 박스
-CELL = "#22262E"      # 요약 카드
-ON_ACCENT = "#0B2A22" # 민트 버튼 위 글자
+# 노션 스타일 기본색 + 포인트 컬러 하나 (ACCENT만 바꾸면 전체 포인트 색이 바뀜)
+ACCENT = "#2563EB"     # 포인트 컬러 (버튼, D-day, 링크)
+ACCENT_BG = "#EEF3FE"  # 포인트 컬러 옅은 배경
+TEXT = "#37352F"       # 본문 글자 (노션 기본 글자색)
+MUTED = "#787774"      # 보조 글자
+BG = "#FFFFFF"         # 페이지 배경
+SIDEBAR = "#F7F7F5"    # 왼쪽 목록 배경
+CELL = "#F7F7F5"       # 요약 카드 배경
+HOVER = "rgba(55,53,47,0.06)"
+BORDER = "#E9E9E7"
+LINK = ACCENT
+URGENT = "#D44C47"
+SOON = "#CB912F"
+CLOSED = "#9B9A97"
 
 LABELS = {
     "competition_name": "공모전 이름",
@@ -116,72 +120,72 @@ SAMPLE = {
 
 # ── 화면 스타일 ───────────────────────────────────────────
 # UI 수정은 주로 여기(CSS)와 아래 render_* 함수들에서 하면 됩니다.
-BORDER = "#2A2E37"
 st.markdown(
     f"""
     <style>
+    html, body, [data-testid="stAppViewContainer"], .stMarkdown, button, input, textarea {{
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Pretendard", "Noto Sans KR",
+                     "Malgun Gothic", sans-serif; }}
     header[data-testid="stHeader"] {{ height: 0; }}
-    .block-container {{ padding-top: 2.6rem; padding-bottom: 4rem; max-width: 1280px; }}
+    .block-container {{ padding-top: 2.6rem; padding-bottom: 4rem; max-width: 1240px; }}
     .muted {{ color: {MUTED}; }}
     .small {{ font-size: 0.85rem; }}
+    hr {{ border-color: {BORDER} !important; }}
 
     /* 헤더 */
-    .brand {{ display: flex; align-items: baseline; gap: 0.8rem; margin-bottom: 0.9rem; }}
-    .brand .logo {{ font-size: 1.55rem; font-weight: 800; letter-spacing: -0.02em; color: {TEXT}; }}
-    .brand .logo span {{ color: {LINK}; }}
-    .brand .tagline {{ color: {MUTED}; font-size: 0.95rem; }}
-    .toolbar-label {{ padding-top: 0.45rem; font-weight: 500; }}
+    .brand {{ display: flex; align-items: baseline; gap: 0.7rem; margin-bottom: 1rem; }}
+    .brand .logo {{ font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; color: {TEXT}; }}
+    .brand .logo span {{ color: {ACCENT}; }}
+    .brand .tagline {{ color: {MUTED}; font-size: 0.92rem; }}
+    .toolbar-label {{ padding-top: 0.45rem; font-weight: 500; color: {TEXT}; }}
 
-    .section-title {{ font-size: 1.05rem; font-weight: 700; margin: 0 0 0.5rem; color: {TEXT}; }}
+    .section-title {{ font-size: 1rem; font-weight: 700; margin: 0 0 0.4rem; color: {TEXT}; }}
 
-    /* 목록 카드: 카드 전체를 투명 버튼이 덮어서 클릭되게 함 */
-    [class*="st-key-card"] {{ position: relative; background: transparent; border: 1px solid transparent;
-        border-radius: 8px; padding: 0.7rem 0.85rem; gap: 0; }}
-    [class*="st-key-card"]:hover {{ background: #22262E; }}
-    [class*="st-key-cardsel_"] {{ background: #262A33; border-left: 3px solid {LINK}; border-radius: 0 8px 8px 0; }}
-    .st-key-sidebar {{ background: {PANEL}; border: 1px solid {BORDER}; border-radius: 12px; padding: 1rem 0.8rem; }}
-    .brand .logo span {{ color: {LINK}; }}
-    [data-testid="stBaseButton-primary"], [data-testid="stBaseButton-primaryFormSubmit"],
-    [data-testid="stBaseLinkButton-primary"] {{ color: {ON_ACCENT} !important; font-weight: 700; }}
-    [data-testid="stBaseButton-primary"] *, [data-testid="stBaseButton-primaryFormSubmit"] *,
-    [data-testid="stBaseLinkButton-primary"] * {{ color: {ON_ACCENT} !important; }}
+    /* 왼쪽 목록 (노션 사이드바처럼) */
+    .st-key-sidebar {{ background: {SIDEBAR}; border-radius: 10px; padding: 1rem 0.7rem; }}
+    [class*="st-key-card"] {{ position: relative; border-radius: 6px; padding: 0.55rem 0.65rem; gap: 0; }}
+    [class*="st-key-card"]:hover {{ background: {HOVER}; }}
+    [class*="st-key-cardsel_"] {{ background: #FFFFFF; box-shadow: 0 0 0 1px {BORDER}; }}
+    [class*="st-key-cardsel_"] .card-name {{ color: {ACCENT}; }}
     [class*="st-key-card"] .stButton {{ position: absolute; inset: 0; z-index: 2; }}
     [class*="st-key-card"] .stButton button {{ width: 100%; height: 100%; opacity: 0; cursor: pointer; }}
     .card-row {{ display: flex; justify-content: space-between; align-items: flex-start; gap: 0.6rem; }}
-    .card-name {{ font-weight: 600; color: {TEXT}; line-height: 1.35; }}
-    .card-sub {{ color: {MUTED}; font-size: 0.8rem; margin-top: 0.2rem; }}
-    .badge {{ display: inline-block; padding: 0.1rem 0.5rem; border-radius: 4px; font-size: 0.8rem;
-        font-weight: 700; white-space: nowrap; }}
+    .card-name {{ font-weight: 600; color: {TEXT}; line-height: 1.35; font-size: 0.92rem; }}
+    .card-sub {{ color: {MUTED}; font-size: 0.78rem; margin-top: 0.15rem; }}
+    .badge {{ display: inline-block; padding: 0.05rem 0.45rem; border-radius: 4px; font-size: 0.78rem;
+        font-weight: 600; white-space: nowrap; }}
 
     /* 상세 */
-    .detail-title {{ font-size: 1.6rem; font-weight: 700; line-height: 1.3; margin: 0; color: {TEXT}; }}
-    .summary {{ display: grid; grid-template-columns: 1.1fr 1fr 1fr 1fr; gap: 0.6rem; margin: 1rem 0 0.9rem; }}
-    .summary .cell {{ background: {CELL}; border: 1px solid {BORDER}; border-radius: 8px; padding: 0.7rem 0.85rem; }}
-    .summary .label {{ color: {MUTED}; font-size: 0.78rem; margin-bottom: 0.25rem; }}
-    .summary .value {{ font-weight: 700; color: {TEXT}; line-height: 1.35; }}
+    .detail-title {{ font-size: 1.9rem; font-weight: 700; line-height: 1.25; margin: 0.2rem 0 0; color: {TEXT};
+        letter-spacing: -0.01em; }}
+    .summary {{ display: grid; grid-template-columns: 1.1fr 1fr 1fr 1fr; gap: 0.5rem; margin: 1.1rem 0 0.9rem; }}
+    .summary .cell {{ background: {CELL}; border-radius: 8px; padding: 0.75rem 0.9rem; }}
+    .summary .cell.main {{ background: {ACCENT_BG}; }}
+    .summary .label {{ color: {MUTED}; font-size: 0.76rem; margin-bottom: 0.25rem; }}
+    .summary .value {{ font-weight: 600; color: {TEXT}; line-height: 1.35; }}
     .summary .dday {{ font-size: 1.7rem; font-weight: 800; line-height: 1.1; }}
-    .box {{ background: {PANEL}; border: 1px solid {BORDER}; border-radius: 8px;
-        padding: 0.9rem 1.1rem 0.6rem; margin-bottom: 0.8rem; }}
+    .box {{ padding: 0.2rem 0 0.6rem; margin-bottom: 0.9rem; border-bottom: 1px solid {BORDER}; }}
+    .box:last-of-type {{ border-bottom: none; }}
     .kv {{ width: 100%; border-collapse: collapse; margin: 0; }}
     .kv tr, .kv td {{ border: none !important; background: transparent !important; }}
-    .kv td {{ vertical-align: top; padding: 0.28rem 0; }}
-    .kv td.k {{ width: 120px; color: {MUTED}; white-space: nowrap; padding-right: 1rem; }}
-    .kv a {{ color: {LINK}; text-decoration: underline; }}
+    .kv td {{ vertical-align: top; padding: 0.32rem 0; color: {TEXT}; }}
+    .kv td.k {{ width: 130px; color: {MUTED}; white-space: nowrap; padding-right: 1rem; }}
+    .kv a {{ color: {ACCENT}; text-decoration: none; border-bottom: 1px solid {ACCENT}55; }}
 
     /* 첫 화면 */
     .welcome {{ padding: 2.2rem 0 1rem; }}
-    .welcome h3 {{ font-size: 1.3rem; font-weight: 700; margin: 0 0 0.3rem; color: {TEXT}; }}
-    .steps {{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.7rem; margin: 1.3rem 0 1.2rem; }}
-    .step {{ background: {PANEL}; border: 1px solid {BORDER}; border-radius: 8px; padding: 0.9rem 1rem; }}
-    .step .num {{ color: {LINK}; font-weight: 800; font-size: 0.85rem; }}
-    .step .title {{ font-weight: 700; margin: 0.2rem 0; color: {TEXT}; }}
-    .step .desc {{ color: {MUTED}; font-size: 0.85rem; line-height: 1.45; }}
+    .welcome h3 {{ font-size: 1.6rem; font-weight: 700; margin: 0 0 0.35rem; color: {TEXT}; }}
+    .steps {{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem; margin: 1.4rem 0 1.3rem; }}
+    .step {{ background: {SIDEBAR}; border-radius: 8px; padding: 0.95rem 1rem; }}
+    .step .num {{ color: {ACCENT}; font-weight: 700; font-size: 0.8rem; }}
+    .step .title {{ font-weight: 600; margin: 0.25rem 0; color: {TEXT}; }}
+    .step .desc {{ color: {MUTED}; font-size: 0.85rem; line-height: 1.5; }}
 
     .statusbar {{
         position: fixed; left: 0; right: 0; bottom: 0; z-index: 99;
         display: flex; justify-content: space-between;
-        padding: 0.35rem 1.2rem; font-size: 0.8rem; color: {MUTED};
-        background: {PANEL}; border-top: 1px solid {BORDER};
+        padding: 0.35rem 1.2rem; font-size: 0.78rem; color: {MUTED};
+        background: {BG}; border-top: 1px solid {BORDER};
     }}
     .statusbar .error {{ color: {URGENT}; }}
     </style>
@@ -274,11 +278,11 @@ def link_lines_html(text: str) -> str:
 
 # ── 요약·배지 (UI용) ──────────────────────────────────────
 BADGE_STYLE = {  # 상태: (글자색, 배경색)
-    "urgent": (URGENT, "rgba(255,122,107,0.14)"),
-    "soon": (SOON, "rgba(255,180,84,0.14)"),
-    "closed": (CLOSED, "#262A33"),
-    "normal": (LINK, "rgba(61,219,176,0.12)"),
-    "none": (MUTED, "#262A33"),
+    "urgent": ("#C4554D", "#FDEBEC"),
+    "soon": ("#A06B1B", "#FBF3DB"),
+    "closed": (CLOSED, "#F1F1EF"),
+    "normal": (ACCENT, ACCENT_BG),
+    "none": (MUTED, "#F1F1EF"),
 }
 
 
@@ -561,9 +565,9 @@ def render_summary(info: dict) -> None:
     eligibility = info.get("participant_eligibility")
     st.markdown(
         '<div class="summary">'
-        f'<div class="cell"><div class="label">남은 기간</div>'
+        f'<div class="cell main"><div class="label">남은 기간</div>'
         f'<div class="dday" style="color:{fg}">{dday_text(days)}</div><div class="label" style="margin:0.2rem 0 0">{esc(due)}</div></div>'
-        f'<div class="cell"><div class="label">상금</div><div class="value" style="color:{LINK}">{esc(prize_summary(info.get("prize_details")))}</div></div>'
+        f'<div class="cell"><div class="label">상금</div><div class="value">{esc(prize_summary(info.get("prize_details")))}</div></div>'
         f'<div class="cell"><div class="label">참가 방식</div><div class="value">{esc(team_summary(info))}</div></div>'
         f'<div class="cell"><div class="label">참가 대상</div><div class="value">'
         f'{esc(shorten(eligibility) if has_value(eligibility) else "-")}</div></div>'
