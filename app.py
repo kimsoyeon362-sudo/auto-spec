@@ -502,7 +502,8 @@ def render_list() -> None:
     if not records:
         st.markdown('<p class="muted small">' + ("저장한 공고가 없습니다." if not ss.saved
                     else "조건에 맞는 공고가 없습니다.") + "</p>", unsafe_allow_html=True)
-    with st.container(height=480 if len(records) > 6 else None, border=False):
+    box = st.container(height=480, border=False) if len(records) > 6 else st.container(border=False)
+    with box:
         for record in records:
             render_card(record)
 
