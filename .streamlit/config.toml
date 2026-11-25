@@ -1,10 +1,10 @@
-# 화면 테마 — 데스크톱 버전(sv-ttk, Windows 11 라이트)과 비슷한 색
+# 화면 테마 — B안: 다크 + 민트 포인트
 [theme]
-base = "light"
-primaryColor = "#005FB8"
-backgroundColor = "#FAFAFA"
-secondaryBackgroundColor = "#F3F3F3"
-textColor = "#1C1C1C"
+base = "dark"
+primaryColor = "#3DDBB0"
+backgroundColor = "#15171C"
+secondaryBackgroundColor = "#22262E"
+textColor = "#E7E9EE"
 font = "sans serif"
 
 [client]
