@@ -1,0 +1,11 @@
+# 화면 테마 — 데스크톱 버전(sv-ttk, Windows 11 라이트)과 비슷한 색
+[theme]
+base = "light"
+primaryColor = "#005FB8"
+backgroundColor = "#FAFAFA"
+secondaryBackgroundColor = "#F3F3F3"
+textColor = "#1C1C1C"
+font = "sans serif"
+
+[client]
+toolbarMode = "minimal"
